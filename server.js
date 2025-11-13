@@ -1,21 +1,21 @@
-
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
-import Lesson from "./models/Lesson.js";
-import Order from "./models/Order.js";
+
+import Lesson from "./models/Lesson.js";  // Make sure file is EXACTLY Lesson.js
+import Order from "./models/Order.js";    // Make sure file is EXACTLY Order.js
 
 dotenv.config();
 const app = express();
 
-// ====== Core middleware ======
+// ---------------------- Core Middleware ----------------------
 app.use(cors());
 app.use(express.json());
 
-// ====== A) Logger middleware (prints every request) ======
+// ---------------------- Logger (Required by Coursework) ----------------------
 app.use((req, res, next) => {
   const log = {
     time: new Date().toISOString(),
@@ -25,33 +25,45 @@ app.use((req, res, next) => {
     query: req.query,
     body: req.body
   };
-  console.log("[REQUEST]", JSON.stringify(log, null, 2));
+
+  console.log("\n========== REQUEST ==========");
+  console.log(JSON.stringify(log, null, 2));
+  console.log("================================\n");
+
   next();
 });
 
-// ====== B) Static images with existence check ======
+// ---------------------- Image Middleware ----------------------
 const imagesDir = path.join(process.cwd(), "public", "images");
 
-// If missing file, send JSON error (required by coursework)
+// Check image exists (required by coursework)
 app.use("/images", (req, res, next) => {
   const filePath = path.join(imagesDir, req.path);
+
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: "Image not found", path: req.path });
+    return res.status(404).json({
+      error: "Image not found",
+      path: req.path
+    });
   }
+
   next();
 });
 
-// Serve real files when they exist
+// Serve actual image files
 app.use("/images", express.static(imagesDir));
 
-// ====== Routes ======
+// ---------------------- Routes ----------------------
 
-// quick health check
+// Health check route
 app.get("/", (req, res) => {
-  res.json({ ok: true, message: "After School Activities API" });
+  res.json({
+    ok: true,
+    message: "After School Activities API running 🚀"
+  });
 });
 
-// GET /lessons  -> returns all lessons (JSON)
+// GET /lessons  -> return all lessons
 app.get("/lessons", async (req, res) => {
   try {
     const lessons = await Lesson.find({}).sort({ topic: 1 });
@@ -62,14 +74,15 @@ app.get("/lessons", async (req, res) => {
   }
 });
 
-// POST /orders  -> save new order
-// body example: { "name":"Alice", "phone":"07123", "items":[{"lessonId":"...","spaces":2}] }
+// POST /orders -> create an order
 app.post("/orders", async (req, res) => {
   try {
     const { name, phone, items } = req.body;
+
     if (!name || !phone || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: "Invalid order payload" });
     }
+
     const order = await Order.create({ name, phone, items });
     res.status(201).json(order);
   } catch (err) {
@@ -78,32 +91,40 @@ app.post("/orders", async (req, res) => {
   }
 });
 
-// PUT /lessons/:id  -> update ANY attribute (e.g. { "space": 3 })
+// PUT /lessons/:id -> update lesson space or other fields
 app.put("/lessons/:id", async (req, res) => {
   try {
-    const doc = await Lesson.findByIdAndUpdate(
+    const updated = await Lesson.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },
       { new: true, runValidators: true }
     );
-    if (!doc) return res.status(404).json({ error: "Lesson not found" });
-    res.json(doc);
+
+    if (!updated) {
+      return res.status(404).json({ error: "Lesson not found" });
+    }
+
+    res.json(updated);
   } catch (err) {
     console.error("PUT /lessons/:id error:", err);
     res.status(500).json({ error: "Failed to update lesson" });
   }
 });
 
-// ====== Start server after connecting to Mongo ======
+// ---------------------- MongoDB Connection ----------------------
 const { MONGODB_URI, PORT = 3000 } = process.env;
 
 mongoose
-  .connect(MONGODB_URI, { dbName: "after_school_activities" })
+  .connect(MONGODB_URI, {
+    dbName: "after_school_activities"
+  })
   .then(() => {
-    console.log("MongoDB connected");
-    app.listen(PORT, () => console.log(`API listening on http://localhost:${PORT}`));
+    console.log("📦 MongoDB connected successfully");
+    app.listen(PORT, () =>
+      console.log(`🚀 API running at: http://localhost:${PORT}`)
+    );
   })
   .catch((err) => {
-    console.error("Mongo connection error:", err);
+    console.error("❌ MongoDB connection error:", err.message);
     process.exit(1);
   });

@@ -2,7 +2,7 @@
 
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import Lesson from "./models/lesson.js";
+import Lesson from "./models/Lesson.js";
 
 // Load the .env configuration
 dotenv.config();
@@ -40,5 +40,5 @@ const data = [
     console.error("❌ Seed error:", err);
     process.exit(1);
   }
-})();
+});
 
