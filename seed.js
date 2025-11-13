@@ -2,7 +2,7 @@
 
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import Lesson from "./models/Lesson.js";
+import Lesson from "./models/lesson.js";
 
 // Load the .env configuration
 dotenv.config();
