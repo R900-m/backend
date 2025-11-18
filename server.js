@@ -74,6 +74,23 @@ app.get("/lessons", async (req, res) => {
   }
 });
 
+// GET /lessons/:id -> return a single lesson by ID
+app.get("/lessons/:id", async (req, res) => {
+  try {
+    const lesson = await Lesson.findById(req.params.id);
+
+    if (!lesson) {
+      return res.status(404).json({ error: "Lesson not found" });
+    }
+
+    res.json(lesson);
+  } catch (err) {
+    console.error("GET /lessons/:id error:", err);
+    res.status(500).json({ error: "Failed to fetch lesson" });
+  }
+});
+
+
 // POST /orders -> create an order
 app.post("/orders", async (req, res) => {
   try {
