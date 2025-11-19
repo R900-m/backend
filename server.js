@@ -93,6 +93,9 @@ app.get("/lessons/:id", async (req, res) => {
 });
 
 
+// Coursework commit 2 - route documentation
+
+
 // POST /orders -> create an order
 app.post("/orders", async (req, res) => {
   try {
