@@ -1,3 +1,5 @@
+// Backend server configuration - Coursework Version 2025
+
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
