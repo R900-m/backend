@@ -147,3 +147,5 @@ mongoose
     console.error("❌ MongoDB connection error:", err.message);
     process.exit(1);
   });
+
+  // Coursework commit 3 - end of file
