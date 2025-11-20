@@ -1,23 +1,28 @@
 // Backend server configuration - Coursework Version 2025
+// Uses ONLY native MongoDB driver (NO mongoose)
 
+// ---------------- Imports ----------------
 import express from "express";
-import mongoose from "mongoose";
+import { MongoClient, ObjectId } from "mongodb";
 import cors from "cors";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 
-import Lesson from "./models/Lesson.js";  // Make sure file is EXACTLY Lesson.js
-import Order from "./models/Order.js";    // Make sure file is EXACTLY Order.js
-
 dotenv.config();
 const app = express();
 
-// ---------------------- Core Middleware ----------------------
+const { MONGODB_URI, PORT = 3000 } = process.env;
+
+// Global collection variables
+let lessonsCollection;
+let ordersCollection;
+
+// ---------------- Core Middleware ----------------
 app.use(cors());
 app.use(express.json());
 
-// ---------------------- Logger (Required by Coursework) ----------------------
+// ---------------- Logger Middleware ----------------
 app.use((req, res, next) => {
   const log = {
     time: new Date().toISOString(),
@@ -35,29 +40,25 @@ app.use((req, res, next) => {
   next();
 });
 
-// ---------------------- Image Middleware ----------------------
+// ---------------- Image Middleware ----------------
 const imagesDir = path.join(process.cwd(), "public", "images");
 
-// Check image exists (required by coursework)
 app.use("/images", (req, res, next) => {
   const filePath = path.join(imagesDir, req.path);
-
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({
       error: "Image not found",
       path: req.path
     });
   }
-
   next();
 });
 
-// Serve actual image files
 app.use("/images", express.static(imagesDir));
 
-// ---------------------- Routes ----------------------
+// ---------------- Routes ----------------
 
-// Health check route
+// Health check
 app.get("/", (req, res) => {
   res.json({
     ok: true,
@@ -65,10 +66,10 @@ app.get("/", (req, res) => {
   });
 });
 
-// GET /lessons  -> return all lessons
+// GET all lessons
 app.get("/lessons", async (req, res) => {
   try {
-    const lessons = await Lesson.find({}).sort({ topic: 1 });
+    const lessons = await lessonsCollection.find({}).sort({ topic: 1 }).toArray();
     res.json(lessons);
   } catch (err) {
     console.error("GET /lessons error:", err);
@@ -76,10 +77,17 @@ app.get("/lessons", async (req, res) => {
   }
 });
 
-// GET /lessons/:id -> return a single lesson by ID
+// GET lesson by ID
 app.get("/lessons/:id", async (req, res) => {
   try {
-    const lesson = await Lesson.findById(req.params.id);
+    const id = req.params.id;
+
+    let lesson;
+    try {
+      lesson = await lessonsCollection.findOne({ _id: new ObjectId(id) });
+    } catch {
+      return res.status(400).json({ error: "Invalid lesson ID format" });
+    }
 
     if (!lesson) {
       return res.status(404).json({ error: "Lesson not found" });
@@ -92,11 +100,7 @@ app.get("/lessons/:id", async (req, res) => {
   }
 });
 
-
-// Coursework commit 2 - route documentation
-
-
-// POST /orders -> create an order
+// POST create order
 app.post("/orders", async (req, res) => {
   try {
     const { name, phone, items } = req.body;
@@ -105,50 +109,73 @@ app.post("/orders", async (req, res) => {
       return res.status(400).json({ error: "Invalid order payload" });
     }
 
-    const order = await Order.create({ name, phone, items });
-    res.status(201).json(order);
+    const order = {
+      name,
+      phone,
+      items,
+      createdAt: new Date()
+    };
+
+    const result = await ordersCollection.insertOne(order);
+
+    res.status(201).json({ ...order, _id: result.insertedId });
   } catch (err) {
     console.error("POST /orders error:", err);
     res.status(500).json({ error: "Failed to create order" });
   }
 });
 
-// PUT /lessons/:id -> update lesson space or other fields
+// PUT update lesson
 app.put("/lessons/:id", async (req, res) => {
   try {
-    const updated = await Lesson.findByIdAndUpdate(
-      req.params.id,
-      { $set: req.body },
-      { new: true, runValidators: true }
+    const id = req.params.id;
+
+    let updateFilter;
+    try {
+      updateFilter = { _id: new ObjectId(id) };
+    } catch {
+      return res.status(400).json({ error: "Invalid lesson ID format" });
+    }
+
+    const update = { $set: req.body };
+
+    const result = await lessonsCollection.findOneAndUpdate(
+      updateFilter,
+      update,
+      { returnDocument: "after" }
     );
 
-    if (!updated) {
+    if (!result.value) {
       return res.status(404).json({ error: "Lesson not found" });
     }
 
-    res.json(updated);
+    res.json(result.value);
   } catch (err) {
     console.error("PUT /lessons/:id error:", err);
     res.status(500).json({ error: "Failed to update lesson" });
   }
 });
 
-// ---------------------- MongoDB Connection ----------------------
-const { MONGODB_URI, PORT = 3000 } = process.env;
+// ---------------- MongoDB Connection ----------------
+async function startServer() {
+  try {
+    const client = new MongoClient(MONGODB_URI);
+    await client.connect();
 
-mongoose
-  .connect(MONGODB_URI, {
-    dbName: "after_school_activities"
-  })
-  .then(() => {
-    console.log("📦 MongoDB connected successfully");
-    app.listen(PORT, () =>
-      console.log(`🚀 API running at: http://localhost:${PORT}`)
-    );
-  })
-  .catch((err) => {
-    console.error("❌ MongoDB connection error:", err.message);
+    const db = client.db("after_school_activities");
+
+    lessonsCollection = db.collection("lessons");
+    ordersCollection = db.collection("orders");
+
+    console.log("✅ MongoDB connected using native driver");
+
+    app.listen(PORT, () => {
+      console.log(`🚀 API running at http://localhost:${PORT}`);
+    });
+  } catch (err) {
+    console.error("❌ MongoDB connection error:", err);
     process.exit(1);
-  });
+  }
+}
 
-  // Coursework commit 3 - end of file
+startServer();
