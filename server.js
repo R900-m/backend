@@ -1,7 +1,7 @@
-// =========================
-// After School Activities API (Native MongoDB Only)
-// =========================
+// Backend server configuration - Coursework Version 2025
+// Uses ONLY native MongoDB driver (NO mongoose)
 
+// ---------------- Imports ----------------
 import express from "express";
 import { MongoClient, ObjectId } from "mongodb";
 import cors from "cors";
@@ -12,22 +12,17 @@ import path from "path";
 dotenv.config();
 const app = express();
 
-// Environment variables
 const { MONGODB_URI, PORT = 3000 } = process.env;
 
-// Global DB collections
+// Global collection variables
 let lessonsCollection;
 let ordersCollection;
 
-// ---------------------------
-// Middleware: CORS + JSON
-// ---------------------------
+// ---------------- Core Middleware ----------------
 app.use(cors());
 app.use(express.json());
 
-// ---------------------------
-// Logger Middleware (Required)
-// ---------------------------
+// ---------------- Logger Middleware ----------------
 app.use((req, res, next) => {
   const log = {
     time: new Date().toISOString(),
@@ -38,31 +33,30 @@ app.use((req, res, next) => {
     body: req.body
   };
 
-  console.log("\n===== REQUEST =====");
+  console.log("\n========== REQUEST ==========");
   console.log(JSON.stringify(log, null, 2));
-  console.log("===================\n");
+  console.log("================================\n");
 
   next();
 });
 
-// ---------------------------
-// Image Middleware
-// ---------------------------
+// ---------------- Image Middleware ----------------
 const imagesDir = path.join(process.cwd(), "public", "images");
 
 app.use("/images", (req, res, next) => {
   const filePath = path.join(imagesDir, req.path);
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: "Image not found", path: req.path });
+    return res.status(404).json({
+      error: "Image not found",
+      path: req.path
+    });
   }
   next();
 });
 
 app.use("/images", express.static(imagesDir));
 
-// ---------------------------
-// ROUTES
-// ---------------------------
+// ---------------- Routes ----------------
 
 // Health check
 app.get("/", (req, res) => {
@@ -88,11 +82,12 @@ app.get("/lessons/:id", async (req, res) => {
   try {
     const id = req.params.id;
 
-    if (!ObjectId.isValid(id)) {
+    let lesson;
+    try {
+      lesson = await lessonsCollection.findOne({ _id: new ObjectId(id) });
+    } catch {
       return res.status(400).json({ error: "Invalid lesson ID format" });
     }
-
-    const lesson = await lessonsCollection.findOne({ _id: new ObjectId(id) });
 
     if (!lesson) {
       return res.status(404).json({ error: "Lesson not found" });
@@ -111,17 +106,19 @@ app.post("/orders", async (req, res) => {
     const { name, phone, items } = req.body;
 
     if (!name || !phone || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: "Invalid order data" });
+      return res.status(400).json({ error: "Invalid order payload" });
     }
 
-    const order = { name, phone, items };
+    const order = {
+      name,
+      phone,
+      items,
+      createdAt: new Date()
+    };
+
     const result = await ordersCollection.insertOne(order);
 
-    res.json({
-      message: "Order created successfully",
-      orderId: result.insertedId
-    });
-
+    res.status(201).json({ ...order, _id: result.insertedId });
   } catch (err) {
     console.error("POST /orders error:", err);
     res.status(500).json({ error: "Failed to create order" });
@@ -132,58 +129,52 @@ app.post("/orders", async (req, res) => {
 app.put("/lessons/:id", async (req, res) => {
   try {
     const id = req.params.id;
-    const updates = req.body;
 
-    if (!ObjectId.isValid(id)) {
+    let updateFilter;
+    try {
+      updateFilter = { _id: new ObjectId(id) };
+    } catch {
       return res.status(400).json({ error: "Invalid lesson ID format" });
     }
 
-    if (!updates || Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: "No updates provided" });
-    }
+    const update = { $set: req.body };
 
-    const result = await lessonsCollection.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: updates }
+    const result = await lessonsCollection.findOneAndUpdate(
+      updateFilter,
+      update,
+      { returnDocument: "after" }
     );
 
-    if (result.matchedCount === 0) {
+    if (!result.value) {
       return res.status(404).json({ error: "Lesson not found" });
     }
 
-    res.json({
-      message: "Lesson updated successfully",
-      updated: updates
-    });
-
+    res.json(result.value);
   } catch (err) {
     console.error("PUT /lessons/:id error:", err);
     res.status(500).json({ error: "Failed to update lesson" });
   }
 });
 
-// ---------------------------
-// CONNECT TO MONGODB & START SERVER
-// ---------------------------
+// ---------------- MongoDB Connection ----------------
 async function startServer() {
   try {
-    console.log("Connecting to MongoDB...");
-
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
-    console.log("MongoDB connected using native driver");
 
     const db = client.db("after_school_activities");
 
     lessonsCollection = db.collection("lessons");
     ordersCollection = db.collection("orders");
 
+    console.log("✅ MongoDB connected using native driver");
+
     app.listen(PORT, () => {
       console.log(`🚀 API running at http://localhost:${PORT}`);
     });
-
   } catch (err) {
-    console.error("Server start error:", err);
+    console.error("❌ MongoDB connection error:", err);
+    process.exit(1);
   }
 }
 
