@@ -1,7 +1,7 @@
-// Backend server configuration - Coursework Version 2025
-// Uses ONLY native MongoDB driver (NO mongoose)
+// =========================
+// After School Activities API (Native MongoDB Only)
+// =========================
 
-// ---------------- Imports ----------------
 import express from "express";
 import { MongoClient, ObjectId } from "mongodb";
 import cors from "cors";
@@ -12,17 +12,22 @@ import path from "path";
 dotenv.config();
 const app = express();
 
+// Environment variables
 const { MONGODB_URI, PORT = 3000 } = process.env;
 
-// Global collection variables
+// Global DB collections
 let lessonsCollection;
 let ordersCollection;
 
-// ---------------- Core Middleware ----------------
+// ---------------------------
+// Middleware: CORS + JSON
+// ---------------------------
 app.use(cors());
 app.use(express.json());
 
-// ---------------- Logger Middleware ----------------
+// ---------------------------
+// Logger Middleware (Required)
+// ---------------------------
 app.use((req, res, next) => {
   const log = {
     time: new Date().toISOString(),
@@ -33,30 +38,31 @@ app.use((req, res, next) => {
     body: req.body
   };
 
-  console.log("\n========== REQUEST ==========");
+  console.log("\n===== REQUEST =====");
   console.log(JSON.stringify(log, null, 2));
-  console.log("================================\n");
+  console.log("===================\n");
 
   next();
 });
 
-// ---------------- Image Middleware ----------------
+// ---------------------------
+// Image Middleware
+// ---------------------------
 const imagesDir = path.join(process.cwd(), "public", "images");
 
 app.use("/images", (req, res, next) => {
   const filePath = path.join(imagesDir, req.path);
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({
-      error: "Image not found",
-      path: req.path
-    });
+    return res.status(404).json({ error: "Image not found", path: req.path });
   }
   next();
 });
 
 app.use("/images", express.static(imagesDir));
 
-// ---------------- Routes ----------------
+// ---------------------------
+// ROUTES
+// ---------------------------
 
 // Health check
 app.get("/", (req, res) => {
@@ -82,12 +88,11 @@ app.get("/lessons/:id", async (req, res) => {
   try {
     const id = req.params.id;
 
-    let lesson;
-    try {
-      lesson = await lessonsCollection.findOne({ _id: new ObjectId(id) });
-    } catch {
+    if (!ObjectId.isValid(id)) {
       return res.status(400).json({ error: "Invalid lesson ID format" });
     }
+
+    const lesson = await lessonsCollection.findOne({ _id: new ObjectId(id) });
 
     if (!lesson) {
       return res.status(404).json({ error: "Lesson not found" });
@@ -106,19 +111,17 @@ app.post("/orders", async (req, res) => {
     const { name, phone, items } = req.body;
 
     if (!name || !phone || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: "Invalid order payload" });
+      return res.status(400).json({ error: "Invalid order data" });
     }
 
-    const order = {
-      name,
-      phone,
-      items,
-      createdAt: new Date()
-    };
-
+    const order = { name, phone, items };
     const result = await ordersCollection.insertOne(order);
 
-    res.status(201).json({ ...order, _id: result.insertedId });
+    res.json({
+      message: "Order created successfully",
+      orderId: result.insertedId
+    });
+
   } catch (err) {
     console.error("POST /orders error:", err);
     res.status(500).json({ error: "Failed to create order" });
@@ -129,52 +132,58 @@ app.post("/orders", async (req, res) => {
 app.put("/lessons/:id", async (req, res) => {
   try {
     const id = req.params.id;
+    const updates = req.body;
 
-    let updateFilter;
-    try {
-      updateFilter = { _id: new ObjectId(id) };
-    } catch {
+    if (!ObjectId.isValid(id)) {
       return res.status(400).json({ error: "Invalid lesson ID format" });
     }
 
-    const update = { $set: req.body };
+    if (!updates || Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "No updates provided" });
+    }
 
-    const result = await lessonsCollection.findOneAndUpdate(
-      updateFilter,
-      update,
-      { returnDocument: "after" }
+    const result = await lessonsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updates }
     );
 
-    if (!result.value) {
+    if (result.matchedCount === 0) {
       return res.status(404).json({ error: "Lesson not found" });
     }
 
-    res.json(result.value);
+    res.json({
+      message: "Lesson updated successfully",
+      updated: updates
+    });
+
   } catch (err) {
     console.error("PUT /lessons/:id error:", err);
     res.status(500).json({ error: "Failed to update lesson" });
   }
 });
 
-// ---------------- MongoDB Connection ----------------
+// ---------------------------
+// CONNECT TO MONGODB & START SERVER
+// ---------------------------
 async function startServer() {
   try {
+    console.log("Connecting to MongoDB...");
+
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
+    console.log("MongoDB connected using native driver");
 
     const db = client.db("after_school_activities");
 
     lessonsCollection = db.collection("lessons");
     ordersCollection = db.collection("orders");
 
-    console.log("✅ MongoDB connected using native driver");
-
     app.listen(PORT, () => {
       console.log(`🚀 API running at http://localhost:${PORT}`);
     });
+
   } catch (err) {
-    console.error("❌ MongoDB connection error:", err);
-    process.exit(1);
+    console.error("Server start error:", err);
   }
 }
 
