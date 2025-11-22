@@ -1,7 +1,7 @@
 // Backend server configuration - Coursework Version 2025
-// Uses ONLY native MongoDB driver
+// Uses ONLY native MongoDB driver (NO mongoose)
 
-//////////////////// Imports ////////////////////
+// ---------------- Imports ----------------
 import express from "express";
 import { MongoClient, ObjectId } from "mongodb";
 import cors from "cors";
@@ -12,19 +12,17 @@ import path from "path";
 dotenv.config();
 const app = express();
 
-// Read connection string + port from environment
-// (locally from .env, on Render from Environment tab)
 const { MONGODB_URI, PORT = 3000 } = process.env;
 
-// Global collection variables (set after Mongo connects)
+// Global collection variables
 let lessonsCollection;
 let ordersCollection;
 
-//////////////////// Core Middleware ////////////////////
+// ---------------- Core Middleware ----------------
 app.use(cors());
-app.use(express.json()); // parse JSON bodies
+app.use(express.json());
 
-//////////////////// Logger Middleware ////////////////////
+// ---------------- Logger Middleware ----------------
 app.use((req, res, next) => {
   const log = {
     time: new Date().toISOString(),
@@ -32,7 +30,7 @@ app.use((req, res, next) => {
     url: req.originalUrl,
     params: req.params,
     query: req.query,
-    body: req.body,
+    body: req.body
   };
 
   console.log("\n========== REQUEST ==========");
@@ -42,33 +40,29 @@ app.use((req, res, next) => {
   next();
 });
 
-//////////////////// Image Middleware ////////////////////
-
-// Public images live in Back-end/public/images
+// ---------------- Image Middleware ----------------
 const imagesDir = path.join(process.cwd(), "public", "images");
 
-// Check image exists and return 404 JSON if it doesn't
 app.use("/images", (req, res, next) => {
   const filePath = path.join(imagesDir, req.path);
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({
       error: "Image not found",
-      path: req.path,
+      path: req.path
     });
   }
   next();
 });
 
-// Serve image files
 app.use("/images", express.static(imagesDir));
 
-//////////////////// Routes ////////////////////
+// ---------------- Routes ----------------
 
-// Health check (used by browser + Render)
+// Health check
 app.get("/", (req, res) => {
   res.json({
     ok: true,
-    message: "After School Activities API running 🚀",
+    message: "After School Activities API running 🚀"
   });
 });
 
@@ -83,7 +77,7 @@ app.get("/lessons", async (req, res) => {
   }
 });
 
-// GET single lesson by ID
+// GET lesson by ID
 app.get("/lessons/:id", async (req, res) => {
   try {
     const id = req.params.id;
@@ -111,7 +105,6 @@ app.post("/orders", async (req, res) => {
   try {
     const { name, phone, items } = req.body;
 
-    // Simple validation
     if (!name || !phone || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: "Invalid order payload" });
     }
@@ -120,7 +113,7 @@ app.post("/orders", async (req, res) => {
       name,
       phone,
       items,
-      createdAt: new Date(),
+      createdAt: new Date()
     };
 
     const result = await ordersCollection.insertOne(order);
@@ -132,7 +125,7 @@ app.post("/orders", async (req, res) => {
   }
 });
 
-// PUT update lesson (used for your PUT request in Postman)
+// PUT update lesson
 app.put("/lessons/:id", async (req, res) => {
   try {
     const id = req.params.id;
@@ -149,7 +142,7 @@ app.put("/lessons/:id", async (req, res) => {
     const result = await lessonsCollection.findOneAndUpdate(
       updateFilter,
       update,
-      { returnDocument: "after" } // return the updated document
+      { returnDocument: "after" }
     );
 
     if (!result.value) {
@@ -163,53 +156,14 @@ app.put("/lessons/:id", async (req, res) => {
   }
 });
 
-//////////////////// OPTIONAL: Reseed Route (no Render Shell) ////////////////////
-// This lets you reset lessons directly from Postman instead of using `node seed.js`.
-// Use it carefully: it DELETES all lessons and re-inserts the defaults.
-
-const seedLessons = [
-  { topic: "Art",          location: "Golders Green", price: 85,  space: 5, image: "/images/art.jpg" },
-  { topic: "Coding",       location: "Barnet",        price: 120, space: 5, image: "/images/coding.jpg" },
-  { topic: "Dance",        location: "Mill Hill",     price: 75,  space: 5, image: "/images/Dance.jpg" },
-  { topic: "Drama",        location: "Camden",        price: 80,  space: 5, image: "/images/Drama.jpg" },
-  { topic: "English",      location: "Colindale",     price: 90,  space: 5, image: "/images/english.jpg" },
-  { topic: "Math",         location: "Hendon",        price: 100, space: 1, image: "/images/math.jpg" },
-  { topic: "Music",        location: "Finchley",      price: 95,  space: 5, image: "/images/music.jpg" },
-  { topic: "Photography",  location: "Hampstead",     price: 105, space: 5, image: "/images/photography.jpg" },
-  { topic: "Robotics",     location: "Cricklewood",   price: 130, space: 5, image: "/images/robotics.jpg" },
-  { topic: "Science",      location: "Brent",         price: 110, space: 1, image: "/images/science.jpg" },
-];
-
-// Example call from Postman:
-// POST https://backend-1-sits.onrender.com/admin/reseed?token=secret123
-app.post("/admin/reseed", async (req, res) => {
-  try {
-    const token = req.query.token;
-    if (token !== "secret123") {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-
-    await lessonsCollection.deleteMany({});
-    const result = await lessonsCollection.insertMany(seedLessons);
-
-    res.json({
-      ok: true,
-      message: "Database reseeded",
-      insertedCount: result.insertedCount,
-    });
-  } catch (err) {
-    console.error("POST /admin/reseed error:", err);
-    res.status(500).json({ error: "Failed to reseed database" });
-  }
-});
-
-//////////////////// MongoDB Connection + Start Server ////////////////////
+// ---------------- MongoDB Connection ----------------
 async function startServer() {
   try {
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
 
     const db = client.db("after_school_activities");
+
     lessonsCollection = db.collection("lessons");
     ordersCollection = db.collection("orders");
 
