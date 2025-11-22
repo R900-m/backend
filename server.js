@@ -130,35 +130,42 @@ app.post("/orders", async (req, res) => {
 });
 
 // PUT update lesson
+// PUT update lesson (simpler version)
 app.put("/lessons/:id", async (req, res) => {
   try {
-    const id = req.params.id;
+    const { id } = req.params;
 
-    let updateFilter;
+    // 1) Check the ID format
+    let objectId;
     try {
-      updateFilter = { _id: new ObjectId(id) };
+      objectId = new ObjectId(id);
     } catch {
       return res.status(400).json({ error: "Invalid lesson ID format" });
     }
 
-    const update = { $set: req.body };
+    // 2) Build the update document from the body
+    const updateDoc = { $set: req.body };
 
-    const result = await lessonsCollection.findOneAndUpdate(
-      updateFilter,
-      update,
-      { returnDocument: "after" }
+    // 3) Update the lesson
+    const result = await lessonsCollection.updateOne(
+      { _id: objectId },
+      updateDoc
     );
 
-    if (!result.value) {
+    // 4) If no lesson matched, send 404
+    if (result.matchedCount === 0) {
       return res.status(404).json({ error: "Lesson not found" });
     }
 
-    res.json(result.value);
+    // 5) Fetch the updated lesson and return it
+    const updatedLesson = await lessonsCollection.findOne({ _id: objectId });
+    res.json(updatedLesson);
   } catch (err) {
     console.error("PUT /lessons/:id error:", err);
     res.status(500).json({ error: "Failed to update lesson" });
   }
 });
+
 
 // ---------------- MongoDB Connection ----------------
 async function startServer() {
