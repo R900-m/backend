@@ -78,27 +78,31 @@ app.get("/lessons", async (req, res) => {
 });
 
 // GET lesson by ID
-app.get("/lessons/:id", async (req, res) => {
+app.get("/seed", async (req, res) => {
   try {
-    const id = req.params.id;
+    const lessons = [
+      { topic: "Art", location: "Golders Green", price: 85, space: 5, image: "/images/art.jpg" },
+      { topic: "Coding", location: "Barnet", price: 120, space: 5, image: "/images/coding.jpg" },
+      { topic: "Dance", location: "Mill Hill", price: 75, space: 5, image: "/images/Dance.jpg" },
+      { topic: "Drama", location: "Camden", price: 80, space: 5, image: "/images/Drama.jpg" },
+      { topic: "English", location: "Colindale", price: 90, space: 5, image: "/images/english.jpg" },
+      { topic: "Math", location: "Hendon", price: 100, space: 5, image: "/images/math.jpg" },
+      { topic: "Music", location: "Finchley", price: 95, space: 5, image: "/images/music.jpg" },
+      { topic: "Photography", location: "Hampstead", price: 105, space: 5, image: "/images/photography.jpg" },
+      { topic: "Robotics", location: "Cricklewood", price: 130, space: 5, image: "/images/robotics.jpg" },
+      { topic: "Science", location: "Brent", price: 110, space: 5, image: "/images/science.jpg" }
+    ];
 
-    let lesson;
-    try {
-      lesson = await lessonsCollection.findOne({ _id: new ObjectId(id) });
-    } catch {
-      return res.status(400).json({ error: "Invalid lesson ID format" });
-    }
+    await lessonsCollection.deleteMany({});
+    await lessonsCollection.insertMany(lessons);
 
-    if (!lesson) {
-      return res.status(404).json({ error: "Lesson not found" });
-    }
+    res.json({ ok: true, message: "Seed completed on Render" });
 
-    res.json(lesson);
   } catch (err) {
-    console.error("GET /lessons/:id error:", err);
-    res.status(500).json({ error: "Failed to fetch lesson" });
+    res.status(500).json({ error: err.message });
   }
 });
+
 
 // POST create order
 app.post("/orders", async (req, res) => {
