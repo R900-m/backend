@@ -1,39 +1,28 @@
-import mongoose from "mongoose";
+/*
+  Order.js — Native MongoDB driver version
+  NO Mongoose used
+*/
 
-// ----- Order Item (one line in the cart) -----
-const OrderItemSchema = new mongoose.Schema({
-  lessonId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Lesson",
-    required: true
-  },
-  spaces: {
-    type: Number,
-    required: true,
-    min: 1
+import { ObjectId } from "mongodb";
+
+export default class Order {
+  
+  static collection(db) {
+    return db.collection("orders");
   }
-});
 
-// ----- Full Order -----
-const OrderSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true
-    },
-    phone: {
-      type: String,
-      required: true,
-      trim: true
-    },
-    items: {
-      type: [OrderItemSchema],
-      required: true,
-      validate: v => Array.isArray(v) && v.length > 0
-    }
-  },
-  { timestamps: true }
-);
+  // Save a new order
+  static async create(db, orderData) {
+    return await this.collection(db).insertOne(orderData);
+  }
 
-export default mongoose.model("Order", OrderSchema);
+  // Find all orders (if needed)
+  static async findAll(db) {
+    return await this.collection(db).find().toArray();
+  }
+
+  // Find one by ID
+  static async findById(db, id) {
+    return await this.collection(db).findOne({ _id: new ObjectId(id) });
+  }
+}
