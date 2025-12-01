@@ -9,7 +9,7 @@ dotenv.config();
 // ---------------- App Setup ----------------
 const app = express();
 app.use(cors());
-app.use(express.json()); // IMPORTANT for POST & PUT
+app.use(express.json()); // REQUIRED for POST & PUT
 
 // ---------------- MongoDB Setup ----------------
 const client = new MongoClient(process.env.MONGODB_URI);
@@ -22,7 +22,9 @@ async function start() {
         await client.connect();
         console.log("Connected to MongoDB ✔");
 
-        const db = client.db("Coursework"); // your database name
+        // IMPORTANT: use your REAL database name
+        const db = client.db("after_school_activities");
+
         lessonsCollection = db.collection("lessons");
         ordersCollection = db.collection("orders");
 
@@ -47,7 +49,7 @@ start();
 app.get("/lessons", async (req, res) => {
     try {
         const lessons = await lessonsCollection.find({}).toArray();
-        res.json(lessons); // ✔ FIXED
+        res.json(lessons);
     } catch (err) {
         res.status(500).json({ error: "Failed to fetch lessons" });
     }
@@ -55,7 +57,7 @@ app.get("/lessons", async (req, res) => {
 
 /*
     ===========================
-    2. POST ORDER
+    2. POST NEW ORDER
     ===========================
 */
 app.post("/orders", async (req, res) => {
@@ -81,10 +83,10 @@ app.post("/orders", async (req, res) => {
 */
 app.put("/lessons/:id", async (req, res) => {
     try {
-        const id = req.params.id.trim(); // safety trim
+        const id = req.params.id.trim();
         const updates = req.body;
 
-        // Validate correct MongoDB ID
+        // Validate MongoDB ID format
         if (!ObjectId.isValid(id)) {
             return res.status(400).json({ error: "Invalid lesson ID" });
         }
