@@ -197,7 +197,7 @@ Render provides the live server URL used by the front-end.
 Author
 
 Student: Rawaz Al-Barznji student ID: M01052576 Course: CST3144 Full Stack Web Development (2025-2026)
-=======
+
 Verified MongoDB update 
 
 Deployment on Render
@@ -214,9 +214,7 @@ MONGO_URL
 Render provides the live server URL used by the front-end. 
 
 
-Author
-
-Student: Rawaz Al-Barznji 
+Author: Rawaz Al-Barznji (Student)
 student ID: M01052576 
 Course: CST3144 Full Stack Web Development (2025-2026)
  
