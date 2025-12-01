@@ -47,7 +47,7 @@ start();
 app.get("/lessons", async (req, res) => {
     try {
         const lessons = await lessonsCollection.find({}).toArray();
-        res.json(lessons);       // ✔ FIXED
+        res.json(lessons); // ✔ FIXED
     } catch (err) {
         res.status(500).json({ error: "Failed to fetch lessons" });
     }
@@ -81,8 +81,13 @@ app.post("/orders", async (req, res) => {
 */
 app.put("/lessons/:id", async (req, res) => {
     try {
-        const id = req.params.id;
+        const id = req.params.id.trim(); // safety trim
         const updates = req.body;
+
+        // Validate correct MongoDB ID
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ error: "Invalid lesson ID" });
+        }
 
         const result = await lessonsCollection.updateOne(
             { _id: new ObjectId(id) },
@@ -96,6 +101,7 @@ app.put("/lessons/:id", async (req, res) => {
         res.json({ message: "Lesson updated successfully" });
 
     } catch (err) {
+        console.error("PUT error:", err);
         res.status(500).json({ error: "Failed to update lesson" });
     }
 });
