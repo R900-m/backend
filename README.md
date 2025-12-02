@@ -69,8 +69,7 @@ Postman API Testing
 
 API Documentation ✔ GET /lessons
 =======
-Postman API Testing 
-
+Postman API Testing
 API Documentation
 ✔ GET /lessons
 >>>>>>> 6c0d1857df58a3c9d667a5da399351266d32bb3b
@@ -149,7 +148,7 @@ const client = new MongoClient(process.env.MONGO_URL);
 await client.connect();
 >>>>>>> 6c0d1857df58a3c9d667a5da399351266d32bb3b
 
-🌱 Seeding the Database
+Seeding the Database
 
 Run:
 
@@ -161,7 +160,7 @@ node seed.js
 >>>>>>> 6c0d1857df58a3c9d667a5da399351266d32bb3b
 This inserts the initial lesson data into MongoDB.
 
-🧪 Postman Testing
+Postman Testing
 
 Tested Endpoints:
 
